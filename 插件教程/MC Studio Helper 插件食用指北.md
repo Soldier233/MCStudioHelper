@@ -29,11 +29,15 @@
 
    ![填写配置信息](./img/fill-config-info.png)
 
+   - **mcdk 路径**：可留空，插件会使用内置的 MCDK（当前为 v1.6.0）
+   - **启动程序路径**：选择 `Minecraft.Windows.exe`，会写入项目根目录的 `.mcdev.json`
+   - 世界规则、协同组件等设置会与 `.mcdev.json` 双向同步（已有 VS Code 字段如 `window_style` / `mcp_server_config` 不会被覆盖）
+
 ---
 
 ## 三、运行
 
-完成配置后，点击运行按钮即可启动游戏。游戏正常启动的同时，会打开日志输出界面：
+完成配置后，点击运行按钮即可通过 **MCDK** 启动游戏。插件会先合并写入 `.mcdev.json`，再执行内置 `mcdk.exe`。游戏正常启动的同时，会打开日志输出界面：
 
 ![日志输出界面](./img/log-output.jpg)
 
@@ -41,8 +45,8 @@
 
 | 操作 | 快捷键 / 方式 |
 | :-: | :-: |
-| 热重载脚本 | 切换回游戏后按 **R** 键 |
-| 重载整个存档 | 按小键盘 **0** 键 |
+| 热重载脚本 | 由 MCDK 调试 Mod 提供，默认快捷键见 `.mcdev.json` 的 `debug_options` |
+| 重载整个存档 | 由 MCDK 调试 Mod 提供，默认快捷键见 `.mcdev.json` 的 `debug_options` |
 | 跳转到错误代码 | 点击错误日志中的文件链接，PyCharm 自动跳转 |
 
 ![热重载脚本](./img/hot-reload.jpg)
@@ -59,7 +63,7 @@
 在使用断点调试之前，请确保满足以下条件：
 
 1. 使用 **3.7.0.222545** 及以上版本的 ModPC 开发包
-2. 已通过 PyCharm **成功运行过游戏**
+2. 已通过 PyCharm **以 Debug 模式** 启动过「网易组件开发」配置（会向 MCDK 注入 `MCDEV_PTVSD_*`）
 3. 在日志开头能看到如下提示信息：
 
    ![调试就绪提示](./img/debug-ready-hint.png)

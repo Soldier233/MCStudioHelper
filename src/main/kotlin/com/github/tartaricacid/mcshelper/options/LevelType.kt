@@ -15,4 +15,10 @@ enum class LevelType {
             DEFAULT -> "默认"
             FLAT -> "超平坦"
         }
+
+    companion object {
+        fun fromCode(code: Int): LevelType {
+            return entries.firstOrNull { it.code == code } ?: DEFAULT
+        }
+    }
 }

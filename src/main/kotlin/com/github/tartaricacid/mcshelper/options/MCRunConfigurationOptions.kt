@@ -5,6 +5,7 @@ import java.util.*
 import kotlin.random.Random
 
 class MCRunConfigurationOptions : RunConfigurationOptions() {
+    private val mcdkPathProperty = string("").provideDelegate(this, "mcdkPath")
     private val gameExecutablePathProperty = string("").provideDelegate(this, "gameExecutablePath")
 
     private val logLevelProperty = enum(LogLevel.NORMAL).provideDelegate(this, "logLevel")
@@ -21,6 +22,10 @@ class MCRunConfigurationOptions : RunConfigurationOptions() {
     private val keepInventoryProperty = property(false).provideDelegate(this, "keepInventory")
     private val doDaylightCycleProperty = property(true).provideDelegate(this, "doDaylightCycle")
     private val doWeatherCycleProperty = property(true).provideDelegate(this, "doWeatherCycle")
+
+    var mcdkPath: String?
+        get() = mcdkPathProperty.getValue(this)
+        set(path) = mcdkPathProperty.setValue(this, path)
 
     var gameExecutablePath: String?
         get() = gameExecutablePathProperty.getValue(this)

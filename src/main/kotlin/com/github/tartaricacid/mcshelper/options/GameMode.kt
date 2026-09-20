@@ -10,4 +10,10 @@ enum class GameMode {
             SURVIVAL -> "生存模式"
             CREATIVE -> "创造模式"
         }
+
+    companion object {
+        fun fromCode(code: Int): GameMode {
+            return entries.firstOrNull { it.code == code } ?: CREATIVE
+        }
+    }
 }

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.github.tartaricacid.mcshelper"
-version = "1.1.0"
+version = "1.2.0"
 
 fun environment(key: String) = providers.environmentVariable(key)
 

@@ -21,21 +21,20 @@
 
 ## 主要功能
 
-- ✅ 在 PyCharm 中添加运行配置，直接运行开发端
-    - ✅ 运行配置支持协同运行组件、设置世界规则等
-    - ✅ 结合 LSP4IJ 插件和 MCPDB 程序，可实现断点调试功能
+- ✅ 在 PyCharm 中添加运行配置，通过内置 MCDK 启动开发端
+    - ✅ 运行配置支持协同运行组件、设置世界规则等，并同步到项目 `.mcdev.json`
+    - ✅ 结合 LSP4IJ 插件，可在 Debug 启动后附加 ptvsd 做断点调试
 - ✅ 将开发端日志重定向到 PyCharm 的日志控制台并提供着色支持
     - ✅ 支持错误日志文件快速跳转等功能
-- ✅ 在游戏中通过快捷键快速重载组件与世界（例如按键 R 或小键盘 0）
+- ✅ 热重载由 MCDK 内置调试 Mod 提供
 - 🚧 新建预设组件模板、代码补全与提示（画饼中）
 
 ## 鸣谢
 
 感谢以下项目提供的支持与参考：
 
-- Zero123 的 [MCDevTool](https://github.com/GitHub-Zero123/MCDevTool)：提供了思路与部分代码
-- Dofes 的 [MCPDB](https://github.com/Dofes/mcpdb)：提供了启动器的 DAP 协议支持
-- CloudburstMC 的 [NBT 解析库](https://github.com/CloudburstMC/NBT)：提供了基岩版 NBT 解析支持
+- Zero123 的 [MCDevTool](https://github.com/GitHub-Zero123/MCDevTool)：提供 MCDK 启动器
+- Dofes 的 [MC Dev Tools](https://marketplace.visualstudio.com/items?itemName=dofes.mcdev-tools) / [MCPDB](https://github.com/Dofes/mcpdb)：提供 VS Code 集成参考与 DAP 协议支持
 - QuMod 开发者交流群：感谢各位朋友提供的帮助
 
 ## 许可证

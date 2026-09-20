@@ -5,6 +5,9 @@ import com.github.tartaricacid.mcshelper.options.LevelType
 import com.github.tartaricacid.mcshelper.options.LogLevel
 import com.github.tartaricacid.mcshelper.run.MCRunConfiguration
 import com.github.tartaricacid.mcshelper.util.FileUtils
+import com.intellij.execution.ExecutionException
+import com.github.tartaricacid.mcshelper.util.McdkLocator
+import com.github.tartaricacid.mcshelper.util.McdevJson
 import com.github.tartaricacid.mcshelper.util.PathUtils
 import com.intellij.icons.AllIcons
 import com.intellij.ide.actions.RevealFileAction
@@ -40,6 +43,7 @@ import kotlin.random.Random
 class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
     private val runConfig: JComponent
 
+    private lateinit var mcdkPathField: TextFieldWithHistoryWithBrowseButton
     private lateinit var gameExeField: TextFieldWithHistoryWithBrowseButton
 
     private lateinit var logLevel: ComboBox<LogLevel>
@@ -57,9 +61,21 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
     private lateinit var keepInventoryField: JBCheckBox
     private lateinit var doDaylightCycleField: JBCheckBox
     private lateinit var doWeatherCycleField: JBCheckBox
+    private var loadedWorldFolderName: String? = null
 
     init {
         runConfig = panel {
+            row("mcdk 路径：") {
+                val fileChooser = FileChooserDescriptorFactory.singleFile()
+                    .withTitle("mcdk 路径")
+                    .withDescription("请选择 mcdk.exe，留空则使用插件内置版本")
+                    .withExtensionFilter("exe")
+                mcdkPathField = textFieldWithHistoryWithBrowseButton(
+                    null, fileChooser, McdkLocator.Companion::findMcdkExecutables
+                )
+                cell(mcdkPathField).comment("留空使用插件内置 mcdk v${McdkLocator.BUNDLED_VERSION}").align(Align.FILL)
+            }
+
             row("启动程序路径：") {
                 val fileChooser = FileChooserDescriptorFactory.singleFile()
                     .withTitle("启动程序路径")
@@ -68,7 +84,7 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
                 gameExeField = textFieldWithHistoryWithBrowseButton(
                     null, fileChooser, FileUtils.Companion::findMinecraftExecutables
                 )
-                cell(gameExeField).comment("开发者游戏启动器所在路径").align(Align.FILL)
+                cell(gameExeField).comment("写入 .mcdev.json 的 game_executable_path").align(Align.FILL)
             }
 
             row("日志等级：") {
@@ -188,43 +204,56 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
     }
 
     override fun resetEditorFrom(config: MCRunConfiguration) {
-        // 直接把配置的值写到组件上，保证 UI 刷新
-        if (!config.options.gameExecutablePath.isNullOrEmpty()) {
-            gameExeField.text = config.options.gameExecutablePath
+        val options = config.options
+        val overlay = McdevJson.readUiOverlay(config.project)
+
+        if (!options.mcdkPath.isNullOrEmpty()) {
+            mcdkPathField.text = options.mcdkPath
+        } else {
+            mcdkPathField.text = ""
         }
 
-        logLevel.selectedItem = config.options.logLevel
+        val gamePath = overlay?.gameExecutablePath ?: options.gameExecutablePath
+        if (!gamePath.isNullOrEmpty()) {
+            gameExeField.text = gamePath
+        }
+
+        logLevel.selectedItem = options.logLevel
 
         var includedModDirsData = includedModDirs.model
         if (includedModDirsData is DefaultListModel<String>) {
             includedModDirsData.clear()
-            includedModDirsData.addAll(config.options.includedModDirs)
+            includedModDirsData.addAll(overlay?.includedModDirs ?: options.includedModDirs)
         }
 
         // 验证存档目录是否存在，启用/禁用存档管理按钮
         val worldDirPath = PathUtils.worldsDir()
+        val worldFolderName = overlay?.worldFolderName ?: options.worldFolderName
+        loadedWorldFolderName = worldFolderName
         if (worldDirPath != null) {
-            val worldFolder = worldDirPath.resolve(config.options.worldFolderName)
+            val worldFolder = worldDirPath.resolve(worldFolderName)
             this.worldFolder.text = worldFolder.absolutePathString()
             this.worldFolder.isEnabled = worldFolder.exists()
         } else {
             this.worldFolder.isEnabled = false
         }
 
-        worldSeedField.text = config.options.worldSeed.toString()
-        userNameField.text = config.options.userName
+        worldSeedField.text = (overlay?.worldSeed ?: options.worldSeed).toString()
+        userNameField.text = overlay?.userName ?: options.userName
 
-        gameModeField.selectedItem = config.options.gameMode
-        levelTypeField.selectedItem = config.options.levelType
+        gameModeField.selectedItem = overlay?.gameMode ?: options.gameMode
+        levelTypeField.selectedItem = overlay?.levelType ?: options.levelType
 
-        enableCheatsField.isSelected = config.options.enableCheats
-        keepInventoryField.isSelected = config.options.keepInventory
-        doDaylightCycleField.isSelected = config.options.doDaylightCycle
-        doWeatherCycleField.isSelected = config.options.doWeatherCycle
+        enableCheatsField.isSelected = overlay?.enableCheats ?: options.enableCheats
+        keepInventoryField.isSelected = overlay?.keepInventory ?: options.keepInventory
+        doDaylightCycleField.isSelected = overlay?.doDaylightCycle ?: options.doDaylightCycle
+        doWeatherCycleField.isSelected = overlay?.doWeatherCycle ?: options.doWeatherCycle
     }
 
     override fun applyEditorTo(config: MCRunConfiguration) {
         // 从组件读取最新值写回配置
+        config.options.mcdkPath = mcdkPathField.text.trim()
+
         if (gameExeField.text.isBlank()) {
             throw ConfigurationException("启动程序路径不能为空", "配置错误")
         }
@@ -242,6 +271,8 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
         }
         config.options.worldSeed = worldSeedField.text.toLong()
 
+        loadedWorldFolderName?.let { config.options.worldFolderName = it }
+
         config.options.userName = userNameField.text
 
         config.options.gameMode = gameModeField.selectedItem as GameMode
@@ -251,5 +282,11 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
         config.options.keepInventory = keepInventoryField.isSelected
         config.options.doDaylightCycle = doDaylightCycleField.isSelected
         config.options.doWeatherCycle = doWeatherCycleField.isSelected
+
+        try {
+            McdevJson.mergeAndWrite(config.project, config.options)
+        } catch (e: ExecutionException) {
+            throw ConfigurationException(e.message ?: "写入 .mcdev.json 失败", "配置错误")
+        }
     }
 }

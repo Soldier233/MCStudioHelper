@@ -11,7 +11,7 @@ import com.intellij.openapi.util.NotNullLazyValue
 
 const val ID: String = "NetEaseMCRunConfiguration"
 const val NAME = "网易组件开发"
-const val DESCRIPTION = "运行网易我的世界中国版开发包"
+const val DESCRIPTION = "通过 MCDK 运行网易我的世界中国版开发包"
 
 val ICON = NotNullLazyValue.createValue { AllIcons.Nodes.Console }
 

@@ -59,8 +59,12 @@ val GAME_LOG = Regex(
 
 const val PYTHON_HEADER = "[Python]"
 
-class LogFilteredProcessHandler(commandLine: GeneralCommandLine, val options: MCRunConfigurationOptions) :
-    KillableProcessHandler(commandLine), AnsiEscapeDecoder.ColoredTextAcceptor {
+class LogFilteredProcessHandler(
+    commandLine: GeneralCommandLine,
+    val options: MCRunConfigurationOptions,
+    private val mcdkPath: String,
+    private val debugEnabled: Boolean
+) : KillableProcessHandler(commandLine), AnsiEscapeDecoder.ColoredTextAcceptor {
     private val myAnsiEscapeDecoder = AnsiEscapeDecoder()
     private val buffers = mutableMapOf<Key<*>, StringBuilder>()
 
@@ -81,6 +85,11 @@ class LogFilteredProcessHandler(commandLine: GeneralCommandLine, val options: MC
 
         myAnsiEscapeDecoder.escapeText(
             "${header}日志记录模式：${options.logLevel.displayName}$RESET\n",
+            ProcessOutputTypes.STDOUT, this
+        )
+
+        myAnsiEscapeDecoder.escapeText(
+            "${header}mcdk 路径：$mcdkPath$RESET\n",
             ProcessOutputTypes.STDOUT, this
         )
 
@@ -110,17 +119,19 @@ class LogFilteredProcessHandler(commandLine: GeneralCommandLine, val options: MC
 
         // 检查启动器版本是否是 3.7.0.222545 及以上版本
         // 如果不是，那么提示用户无法使用 LSP4IJ 的断点调试功能
-        val isSupportedVersion = VersionUtils.canSupportBreakpointDebug(options.gameExecutablePath)
-        if (!isSupportedVersion) {
-            myAnsiEscapeDecoder.escapeText(
-                "${header}启动器版本过低，无法使用断点调试功能（需要 3.7.0.222545 及以上版本）$RESET\n",
-                ProcessOutputTypes.STDERR, this
-            )
-        } else {
-            myAnsiEscapeDecoder.escapeText(
-                "${header}已成功在 127.0.0.1:5678 开启 DAP 调试服务$RESET\n",
-                ProcessOutputTypes.STDOUT, this
-            )
+        if (debugEnabled) {
+            val isSupportedVersion = VersionUtils.canSupportBreakpointDebug(options.gameExecutablePath)
+            if (!isSupportedVersion) {
+                myAnsiEscapeDecoder.escapeText(
+                    "${header}启动器版本过低，无法使用断点调试功能（需要 3.7.0.222545 及以上版本）$RESET\n",
+                    ProcessOutputTypes.STDERR, this
+                )
+            } else {
+                myAnsiEscapeDecoder.escapeText(
+                    "${header}已通过 MCDK 在 127.0.0.1:5678 开启 ptvsd 调试服务$RESET\n",
+                    ProcessOutputTypes.STDOUT, this
+                )
+            }
         }
     }
 

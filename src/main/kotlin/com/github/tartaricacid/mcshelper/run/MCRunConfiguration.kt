@@ -6,6 +6,7 @@ import com.github.tartaricacid.mcshelper.options.MCRunConfigurationOptions
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
+import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -26,12 +27,19 @@ class MCRunConfiguration(project: Project, factory: ConfigurationFactory?, name:
     }
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
+        val debugEnabled = executor.id == DefaultDebugExecutor.EXECUTOR_ID
         return object : CommandLineState(environment) {
             @Throws(ExecutionException::class)
             override fun startProcess(): ProcessHandler = ProgressManager.getInstance()
                 .runProcessWithProgressSynchronously(ThrowableComputable<ProcessHandler, ExecutionException> {
-                    val commandLine = ConfigRunTask.run(project, options)
-                    val processHandler = LogFilteredProcessHandler(commandLine, options)
+                    val launch = ConfigRunTask.run(project, options, debugEnabled)
+                    val processHandler = LogFilteredProcessHandler(
+                        launch.commandLine,
+                        options,
+                        launch.mcdkPath,
+                        launch.debugEnabled
+                    )
+                    processHandler.setShouldDestroyProcessRecursively(true)
                     ProcessTerminatedListener.attach(processHandler)
                     processHandler
                 }, "正在准备运行环境...", true, project)
