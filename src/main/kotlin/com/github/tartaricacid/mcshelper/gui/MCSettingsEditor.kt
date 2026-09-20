@@ -45,6 +45,15 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
                     catch (e: Exception) { Messages.showErrorDialog(it.project, e.message ?: "无法打开项目配置", "打开配置失败") }
                 }
             } })
+            add(JButton("生成默认配置").apply { addActionListener {
+                current?.let {
+                    try {
+                        val created = McdevJson.generateDefault(it.project)
+                        if (created) McdevJson.openEditor(it.project)
+                        else Messages.showInfoMessage(it.project, "项目中已存在 .mcdev.json，未覆盖现有配置。", "生成默认配置")
+                    } catch (e: Exception) { Messages.showErrorDialog(it.project, e.message ?: "无法生成项目配置", "生成配置失败") }
+                }
+            } })
         })
         content.add(fields, BorderLayout.NORTH)
     }

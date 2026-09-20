@@ -1,5 +1,6 @@
 package com.github.tartaricacid.mcshelper.gui.settings
 
+import com.github.tartaricacid.mcshelper.util.FileUtils
 import com.github.tartaricacid.mcshelper.util.KeyboardTypes
 import com.github.tartaricacid.mcshelper.util.McdevSchema
 import com.google.gson.*
@@ -9,7 +10,7 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-/** The form and JSON tab edit one project document; defaults are only displayed until changed. */
+/** Visual editor for one project document; the IDE's Text editor remains the raw JSON view. */
 class McdevEditorPanel(
     private val worldAction: ((Boolean, JsonObject) -> Unit)? = null,
     private val onChange: (String) -> Unit = {}
@@ -19,9 +20,6 @@ class McdevEditorPanel(
     private var root = JsonObject()
     private var updating = false
     private val error = JLabel(" ")
-    private val json = JTextArea(20, 60).apply { name = "json" }
-    private val tabs = JTabbedPane()
-    private var previousTab = 0
 
     private fun column(): JPanel = object : JPanel() {
         init { layout = BoxLayout(this, BoxLayout.Y_AXIS); alignmentX = 0f }
@@ -78,33 +76,7 @@ class McdevEditorPanel(
         group(advanced, "调试服务", McdevSchema.fields.filter { it.path.startsWith("modpc_debugger.") || it.path.startsWith("ptvsd_debugger.") }.map { it.path })
         group(advanced, "网易扩展与 MCP", McdevSchema.fields.filter { it.path.startsWith("netease_config.") || it.path.startsWith("mcp_server_config.") }.map { it.path })
 
-        tabs.addTab("可视化编辑", JScrollPane(form))
-        tabs.addTab("JSON 原文", JScrollPane(json))
-        tabs.addChangeListener {
-            if (!updating) {
-                try {
-                    if (previousTab == 1) {
-                        root = McdevSchema.parse(json.text)
-                        render()
-                    } else {
-                        // Switching views must retain the document's original formatting.
-                        buildForm()
-                    }
-                    previousTab = tabs.selectedIndex
-                    error.text = " "
-                } catch (e: Exception) {
-                    updating = true; tabs.selectedIndex = previousTab; updating = false
-                    error.text = "请修正：${e.message}"
-                }
-            }
-        }
-        json.document.addDocumentListener(listener {
-            if (!updating && tabs.selectedIndex == 1) {
-                onChange(json.text)
-                attempt { McdevSchema.parse(json.text) }
-            }
-        })
-        add(tabs, BorderLayout.CENTER)
+        add(JScrollPane(form), BorderLayout.CENTER)
         add(error, BorderLayout.SOUTH)
         load("{}")
     }
@@ -113,6 +85,7 @@ class McdevEditorPanel(
         val input: JComponent = when {
             field.kind == "bool" -> JCheckBox(field.label)
             field.kind == "key" -> JComboBox((listOf("不绑定") + KeyboardTypes.keys.map { it.toString() }).toTypedArray()).apply { isEditable = true }
+            field.path == "game_executable_path" -> gameExecutableChooser()
             field.choices.isNotEmpty() -> JComboBox(field.choices.toTypedArray())
             field.kind == "mods" -> ModDirectoriesEditor { formChanged() }
             else -> JBTextField().apply {
@@ -154,9 +127,35 @@ class McdevEditorPanel(
                         fileSelectionMode = if (field.path == "world_source_path") JFileChooser.DIRECTORIES_ONLY else JFileChooser.FILES_ONLY
                     }
                     if (chooser.showOpenDialog(this@McdevEditorPanel) == JFileChooser.APPROVE_OPTION)
-                        (input as JTextField).text = chooser.selectedFile.path.replace('\\', '/')
+                        setInputText(input, chooser.selectedFile.path.replace('\\', '/'))
                 }
             }, BorderLayout.EAST)
+        }
+    }
+
+    private fun gameExecutableChooser(): JComboBox<String> {
+        val candidates = runCatching { FileUtils.findMinecraftExecutables() }
+            .getOrDefault(emptyList())
+            .distinct()
+        return JComboBox((listOf("") + candidates).toTypedArray()).apply {
+            isEditable = true
+            renderer = object : DefaultListCellRenderer() {
+                override fun getListCellRendererComponent(
+                    list: JList<*>?, value: Any?, index: Int,
+                    selected: Boolean, focus: Boolean
+                ): Component {
+                    val shown = value?.toString().orEmpty().ifBlank { "自动检测开发端（留空）" }
+                    return super.getListCellRendererComponent(list, shown, index, selected, focus)
+                }
+            }
+            toolTipText = "可选择已扫描到的 Minecraft.Windows.exe，也可以手动输入或点击浏览"
+        }
+    }
+
+    private fun setInputText(input: JComponent, text: String) {
+        when (input) {
+            is javax.swing.text.JTextComponent -> input.text = text
+            is JComboBox<*> -> input.selectedItem = text
         }
     }
 
@@ -172,13 +171,11 @@ class McdevEditorPanel(
     fun load(text: String) {
         updating = true
         try {
-            json.text = text
             root = McdevSchema.parse(text)
             render()
             error.text = " "
         } catch (e: Exception) {
-            tabs.selectedIndex = 1; previousTab = 1
-            error.text = "请在 JSON 页修正：${e.message}"
+            error.text = "请在 Text 编辑器中修正：${e.message}"
         } finally { updating = false }
     }
 
@@ -199,7 +196,9 @@ class McdevEditorPanel(
                     is JCheckBox -> input.isSelected = value.asBoolean
                     is JComboBox<*> -> input.selectedItem = if (row.field.kind == "key") {
                         if (text.isEmpty()) "不绑定" else KeyboardTypes.keys.firstOrNull { it.code.toString() == text }?.toString() ?: text
-                    } else row.field.choices.first { it.substringBefore(' ') == text }
+                    } else if (row.field.choices.isNotEmpty()) {
+                        row.field.choices.first { it.substringBefore(' ') == text }
+                    } else text
                 }
                 row.initial = readValue(row)
             }
@@ -234,14 +233,12 @@ class McdevEditorPanel(
     }
 
     private fun formChanged() {
-        if (updating || tabs.selectedIndex != 0) return
+        if (updating) return
         attempt {
             val text = McdevSchema.gson.toJson(buildForm())
-            updating = true
-            try { json.text = text } finally { updating = false }
             onChange(text)
         }
     }
 
-    fun value(): JsonObject = if (tabs.selectedIndex == 1) McdevSchema.parse(json.text) else buildForm()
+    fun value(): JsonObject = buildForm()
 }

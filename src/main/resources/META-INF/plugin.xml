@@ -37,7 +37,7 @@
     <change-notes><![CDATA[
     <h3>配置编辑</h3>
     <ul>
-      <li>直接打开项目 .mcdev.json 即可切换可视化编辑 / JSON 原文，显示完整默认值</li>
+      <li>直接打开项目 .mcdev.json 使用可视化编辑，原始 JSON 使用 IDE Text 编辑器</li>
       <li>常用设置直接编辑，高级设置折叠展示，Run 使用项目配置启动</li>
       <li>内置 101 项按键，支持鼠标按键、自定义键码和不绑定</li>
     </ul>

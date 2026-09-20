@@ -37,7 +37,7 @@ class McdevJson {
                 var file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)
                 if (file == null) WriteCommandAction.runWriteCommandAction(project, "创建 .mcdev.json", null, Runnable {
                     file = directory.findChild(FILE_NAME) ?: directory.createChildData(this, FILE_NAME).also {
-                        it.setBinaryContent("{}\n".toByteArray(Charsets.UTF_8))
+                        it.setBinaryContent((McdevSchema.gson.toJson(McdevSchema.defaults()) + "\n").toByteArray(Charsets.UTF_8))
                     }
                 })
                 val target = file ?: throw ExecutionException("无法打开 $path")
@@ -47,6 +47,22 @@ class McdevJson {
                     setSelectedEditor(target, "mcdev.visual")
                 }
             } catch (e: Exception) { throw ExecutionException("打开 $path 失败：${e.message}", e) }
+        }
+
+        /** Create the full built-in configuration only when the project has no config yet. */
+        fun generateDefault(project: Project): Boolean {
+            val path = filePath(project) ?: throw ExecutionException("当前项目路径为空")
+            if (Files.exists(path)) return false
+            val directory = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path.parent)
+                ?: throw ExecutionException("项目目录不存在：${path.parent}")
+            WriteCommandAction.runWriteCommandAction(project, "生成默认 .mcdev.json", null, Runnable {
+                if (directory.findChild(FILE_NAME) == null) {
+                    directory.createChildData(this, FILE_NAME).setBinaryContent(
+                        (McdevSchema.gson.toJson(McdevSchema.defaults()) + "\n").toByteArray(Charsets.UTF_8)
+                    )
+                }
+            })
+            return Files.exists(path)
         }
     }
 }

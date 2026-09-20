@@ -34,32 +34,15 @@ class McdevEditorPanelTest {
         }
     }
 
-    @Test fun switchingTabsDoesNotWriteAndJsonReplacesAllFormValues() {
+    @Test fun rawJsonIsLeftToTheIdeTextEditor() {
         SwingUtilities.invokeAndWait {
-            var writes = 0
-            val panel = McdevEditorPanel { writes++ }
-            val tabs = children(panel).filterIsInstance<JTabbedPane>().single()
-            val originalText = "{  \"future\": 42 }\n"
-            panel.load(originalText)
-            tabs.selectedIndex = 1
-            assertEquals(originalText, (named(panel, "json") as JTextArea).text)
-            tabs.selectedIndex = 0
-            assertEquals(0, writes)
-            assertEquals(McdevSchema.parse(originalText), panel.value())
-            tabs.selectedIndex = 1
-            val json = named(panel, "json") as JTextArea
-            json.text = """{"debug_options":{"reload_key":""},"world_seed":null,"future":42}"""
-            tabs.selectedIndex = 0
-            assertEquals("", McdevSchema.get(panel.value(), "debug_options.reload_key")!!.asString)
-            assertTrue(panel.value().get("world_seed").isJsonNull)
+            val panel = McdevEditorPanel()
+            assertTrue(children(panel).none { it is JTabbedPane })
+            panel.load("{  \"future\": 42 }\n")
             assertEquals(42, panel.value().get("future").asInt)
-            assertEquals("", (named(panel, "world_seed") as JTextField).text)
-            tabs.selectedIndex = 1
-            json.text = "{ invalid"
-            tabs.selectedIndex = 0
-            assertEquals(1, tabs.selectedIndex)
-            assertFails { panel.value() }
-            assertEquals("{ invalid", json.text)
+            panel.load("{ invalid")
+            assertEquals(42, panel.value().get("future").asInt)
+            assertTrue((children(panel).filterIsInstance<JLabel>().single { it.text.contains("Text") }).isVisible)
         }
     }
 
@@ -69,14 +52,9 @@ class McdevEditorPanelTest {
             val port = named(panel, "mcp_server_config.server_port") as JTextField
             port.text = "70000"
             assertFails { panel.value() }
-            val tabs = children(panel).filterIsInstance<JTabbedPane>().single()
-            tabs.selectedIndex = 1
-            assertEquals(0, tabs.selectedIndex)
             assertEquals("70000", port.text)
             port.text = "19134"
             assertEquals(19134, McdevSchema.get(panel.value(), "mcp_server_config.server_port")!!.asInt)
-            tabs.selectedIndex = 1
-            assertEquals(1, tabs.selectedIndex)
         }
     }
 

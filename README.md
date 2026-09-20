@@ -19,6 +19,19 @@
 - 本插件旨在简化在本地环境下为网易我的世界中国版编写、运行与调试扩展/组件的工作流。
 - 当前为社区/个人维护的非官方工具，功能仍在持续开发中。
 
+## 本地构建与安装
+
+构建需要 JDK 21 或更高版本（项目源码目标为 Java 21，Gradle 插件至少需要 Java 17）。Windows 下可在 PowerShell 中先选择 JDK，再执行 Gradle Wrapper：
+
+```powershell
+$env:JAVA_HOME = "C:\\Path\\To\\JDK-21-or-newer"
+.\gradlew.bat buildPlugin
+```
+
+构建成功后，插件 ZIP 位于 `build/distributions/`，例如 `mcs-helper-1.2.0.zip`。在 IDEA/PyCharm 中打开 **Settings | Plugins | 齿轮 | Install Plugin from Disk...**，选择该 ZIP，重启 IDE 即可。
+
+也可以在 IDEA 的 Gradle 工具窗口执行 `Tasks | intellij platform | buildPlugin`。项目已关闭不兼容的 Gradle Configuration Cache；如果使用外部 Gradle 命令覆盖了项目设置，追加 `--no-configuration-cache` 即可。
+
 ## 主要功能
 
 - ✅ 在 PyCharm 中添加运行配置，通过内置 MCDK 启动开发端
