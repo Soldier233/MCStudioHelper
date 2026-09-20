@@ -9,6 +9,23 @@ object McdevSchema {
         JsonParser.parseReader(it).asJsonObject
     }
 
+    /** Defaults for a newly created project config, using the open project's name for its world. */
+    fun defaultsForProject(projectName: String?): JsonObject = defaults().apply {
+        val name = projectName?.trim()?.takeIf { it.isNotEmpty() } ?: return@apply
+        addProperty("world_name", name)
+        addProperty("world_folder_name", worldFolderName(name))
+    }
+
+    /** world_folder_name is an ASCII path component in MCDK's config format. */
+    private fun worldFolderName(projectName: String): String {
+        val cleaned = projectName.map { char ->
+            if (char.code in 32..126 && char !in "<>:\"/\\|?*") char else '\u0000'
+        }.joinToString("").trim().trimEnd('.', ' ')
+        if (cleaned.isNotEmpty() && cleaned.none { it == '\u0000' } && cleaned != "." && cleaned != "..") return cleaned
+
+        return "MC_DEV_WORLD"
+    }
+
     /** Fill missing documented fields without changing the input or discarding extensions. */
     fun withDefaults(projectConfig: JsonObject?): JsonObject {
         val result = projectConfig?.deepCopy() ?: JsonObject()

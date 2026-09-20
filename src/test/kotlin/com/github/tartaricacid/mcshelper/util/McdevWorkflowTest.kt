@@ -37,6 +37,17 @@ class McdevWorkflowTest {
         assertEquals(McdevSchema.defaults(), McdevLaunchConfig.resolve(null))
     }
 
+    @Test fun projectDefaultsUseProjectNameForWorldValues() {
+        val defaults = McdevSchema.defaultsForProject("My Mod Project")
+        assertEquals("My Mod Project", defaults.get("world_name").asString)
+        assertEquals("My Mod Project", defaults.get("world_folder_name").asString)
+
+        val unicode = McdevSchema.defaultsForProject("我的项目")
+        assertEquals("我的项目", unicode.get("world_name").asString)
+        assertEquals("MC_DEV_WORLD", unicode.get("world_folder_name").asString)
+        McdevSchema.validate(unicode)
+    }
+
     @Test fun strictJsonValidationProtectsFilesFromInvalidReplacement() {
         for (text in listOf("[]", "null", "{} {}", "{world_seed: 1}", """{"keep_inventory":"false"}""",
             """{"world_seed":1.5}""", """{"modpc_debugger":{"port":65536}}""", """{"window_style":null}""",

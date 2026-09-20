@@ -37,7 +37,7 @@ class McdevJson {
                 var file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)
                 if (file == null) WriteCommandAction.runWriteCommandAction(project, "创建 .mcdev.json", null, Runnable {
                     file = directory.findChild(FILE_NAME) ?: directory.createChildData(this, FILE_NAME).also {
-                        it.setBinaryContent((McdevSchema.gson.toJson(McdevSchema.defaults()) + "\n").toByteArray(Charsets.UTF_8))
+                        it.setBinaryContent((McdevSchema.gson.toJson(defaultsFor(project)) + "\n").toByteArray(Charsets.UTF_8))
                     }
                 })
                 val target = file ?: throw ExecutionException("无法打开 $path")
@@ -58,11 +58,14 @@ class McdevJson {
             WriteCommandAction.runWriteCommandAction(project, "生成默认 .mcdev.json", null, Runnable {
                 if (directory.findChild(FILE_NAME) == null) {
                     directory.createChildData(this, FILE_NAME).setBinaryContent(
-                        (McdevSchema.gson.toJson(McdevSchema.defaults()) + "\n").toByteArray(Charsets.UTF_8)
+                        (McdevSchema.gson.toJson(defaultsFor(project)) + "\n").toByteArray(Charsets.UTF_8)
                     )
                 }
             })
             return Files.exists(path)
         }
+
+        private fun defaultsFor(project: Project): JsonObject =
+            McdevSchema.defaultsForProject(project.name)
     }
 }
