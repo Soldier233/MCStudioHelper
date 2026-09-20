@@ -63,7 +63,8 @@ class LogFilteredProcessHandler(
     commandLine: GeneralCommandLine,
     val options: MCRunConfigurationOptions,
     private val mcdkPath: String,
-    private val debugEnabled: Boolean
+    private val debugEnabled: Boolean,
+    private val effectiveConfig: com.google.gson.JsonObject
 ) : KillableProcessHandler(commandLine), AnsiEscapeDecoder.ColoredTextAcceptor {
     private val myAnsiEscapeDecoder = AnsiEscapeDecoder()
     private val buffers = mutableMapOf<Key<*>, StringBuilder>()
@@ -94,23 +95,24 @@ class LogFilteredProcessHandler(
         )
 
         myAnsiEscapeDecoder.escapeText(
-            "${header}启动器路径：${options.gameExecutablePath}$RESET\n",
+            "${header}启动器路径：${effectiveConfig.get("game_executable_path").asString}$RESET\n",
             ProcessOutputTypes.STDOUT, this
         )
 
         val worldDir = PathUtils.worldsDir()
         if (worldDir != null) {
-            val fullWorldPath = worldDir.resolve(options.worldFolderName).toAbsolutePath().toString()
+            val fullWorldPath = worldDir.resolve(effectiveConfig.get("world_folder_name").asString).toAbsolutePath().toString()
             myAnsiEscapeDecoder.escapeText(
-                "${header}世界存档路径：${fullWorldPath}$RESET\n",
+                "${header}配置的世界存档路径（额外客户端模式不部署）：${fullWorldPath}$RESET\n",
                 ProcessOutputTypes.STDOUT, this
             )
         }
 
-        val includedModsText = if (options.includedModDirs.isEmpty()) {
+        val modPaths = com.github.tartaricacid.mcshelper.util.McdevLaunchConfig.enabledModPaths(effectiveConfig)
+        val includedModsText = if (modPaths.isEmpty()) {
             "无"
         } else {
-            options.includedModDirs.joinToString(", ")
+            modPaths.joinToString(", ")
         }
         myAnsiEscapeDecoder.escapeText(
             "${header}包含组件目录：$includedModsText$RESET\n",
@@ -120,7 +122,7 @@ class LogFilteredProcessHandler(
         // 检查启动器版本是否是 3.7.0.222545 及以上版本
         // 如果不是，那么提示用户无法使用 LSP4IJ 的断点调试功能
         if (debugEnabled) {
-            val isSupportedVersion = VersionUtils.canSupportBreakpointDebug(options.gameExecutablePath)
+            val isSupportedVersion = VersionUtils.canSupportBreakpointDebug(effectiveConfig.get("game_executable_path").asString)
             if (!isSupportedVersion) {
                 myAnsiEscapeDecoder.escapeText(
                     "${header}启动器版本过低，无法使用断点调试功能（需要 3.7.0.222545 及以上版本）$RESET\n",
@@ -128,7 +130,7 @@ class LogFilteredProcessHandler(
                 )
             } else {
                 myAnsiEscapeDecoder.escapeText(
-                    "${header}已通过 MCDK 在 127.0.0.1:5678 开启 ptvsd 调试服务$RESET\n",
+                    "${header}已通过 MCDK 在 127.0.0.1:${options.debugPort} 开启 ptvsd 调试服务$RESET\n",
                     ProcessOutputTypes.STDOUT, this
                 )
             }

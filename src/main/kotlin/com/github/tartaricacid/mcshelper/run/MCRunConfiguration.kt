@@ -33,12 +33,16 @@ class MCRunConfiguration(project: Project, factory: ConfigurationFactory?, name:
             override fun startProcess(): ProcessHandler = ProgressManager.getInstance()
                 .runProcessWithProgressSynchronously(ThrowableComputable<ProcessHandler, ExecutionException> {
                     val launch = ConfigRunTask.run(project, options, debugEnabled)
-                    val processHandler = LogFilteredProcessHandler(
+                    val processHandler = try { LogFilteredProcessHandler(
                         launch.commandLine,
                         options,
                         launch.mcdkPath,
-                        launch.debugEnabled
-                    )
+                        launch.debugEnabled,
+                        launch.effectiveConfig
+                    ) } catch (e: Exception) { launch.cleanup(); throw e }
+                    processHandler.addProcessListener(object : com.intellij.execution.process.ProcessListener {
+                        override fun processTerminated(event: com.intellij.execution.process.ProcessEvent) = launch.cleanup()
+                    })
                     processHandler.setShouldDestroyProcessRecursively(true)
                     ProcessTerminatedListener.attach(processHandler)
                     processHandler

@@ -20,6 +20,8 @@ repositories {
 }
 
 dependencies {
+    testImplementation(kotlin("test"))
+
     intellijPlatform {
         pycharmCommunity("2025.2.3")
         bundledPlugin("PythonCore")
@@ -32,6 +34,8 @@ dependencies {
 }
 
 intellijPlatform {
+    // A separate sandbox allows verification while a development IDE is running.
+    sandboxContainer = layout.buildDirectory.dir(providers.gradleProperty("mcdevSandbox").orElse("idea-sandbox"))
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "251"

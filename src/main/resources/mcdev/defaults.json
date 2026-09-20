@@ -1,0 +1,71 @@
+{
+  "included_mod_dirs": [
+    "./"
+  ],
+  "game_executable_path": "",
+  "world_seed": null,
+  "reset_world": false,
+  "world_name": "MC_DEV_WORLD",
+  "world_folder_name": "MC_DEV_WORLD",
+  "world_source_path": "auto",
+  "auto_join_game": true,
+  "include_debug_mod": true,
+  "log_protocol": 0,
+  "auto_hot_reload_mods": true,
+  "auto_hot_reload_ui": false,
+  "auto_hot_reload_shaders": false,
+  "auto_hot_reload_materials": false,
+  "auto_hot_reload_particles": false,
+  "world_type": 1,
+  "game_mode": 1,
+  "enable_cheats": true,
+  "keep_inventory": true,
+  "do_weather_cycle": true,
+  "do_daylight_cycle": true,
+  "experiment_options": {
+    "data_driven_biomes": false,
+    "upcoming_creator_features": false,
+    "experimental_creator_cameras": false,
+    "gametest": false,
+    "deferred_technical_preview": false
+  },
+  "user_name": "developer",
+  "skin_info": {
+    "slim": false,
+    "skin": ""
+  },
+  "modpc_debugger": {
+    "enabled": false,
+    "port": 5632
+  },
+  "debug_options": {
+    "reload_key": "82",
+    "reload_world_key": "",
+    "reload_addon_key": "",
+    "reload_shaders_key": "",
+    "reload_key_global": false
+  },
+  "window_style": {
+    "always_on_top": false,
+    "hide_title_bar": false,
+    "hide_taskbar_icon": false,
+    "title_bar_color": null,
+    "opacity": null,
+    "fixed_size": null,
+    "fixed_position": null,
+    "lock_corner": null
+  },
+  "netease_config": {
+    "chat_extension": false
+  },
+  "mcp_server_config": {
+    "enabled": false,
+    "server_ip": "localhost",
+    "server_port": 19133
+  },
+  "ptvsd_debugger": {
+    "enabled": false,
+    "ip": "localhost",
+    "port": 56788
+  }
+}
