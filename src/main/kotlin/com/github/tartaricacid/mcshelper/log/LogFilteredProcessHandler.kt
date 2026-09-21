@@ -59,6 +59,20 @@ val GAME_LOG = Regex(
 
 const val PYTHON_HEADER = "[Python]"
 
+/**
+ * Strip CSI/OSC from mcdk, ConPTY, and cpp-mcp (`\033[32m...`).
+ * A lost ESC often shows up as `?` or U+FFFD, producing `?[32m`.
+ */
+private val ANSI_ESCAPE = Regex(
+    """(?:\u001B\[|\u009B|\uFFFD\[)[\d;?=]*[ -/]*[@-~]""" +
+        """|\?\[[\d;?=]+[@-~]""" +
+        """|\u001B\][^\u0007\u001B]*[\u0007\u001B\\]""" +
+        """|\u001B[@-Z\\-_]""" +
+        """|[\r\u0008]"""
+)
+
+fun stripAnsiEscapes(text: String): String = ANSI_ESCAPE.replace(text, "").trim()
+
 class LogFilteredProcessHandler(
     commandLine: GeneralCommandLine,
     val options: MCRunConfigurationOptions,
@@ -66,7 +80,7 @@ class LogFilteredProcessHandler(
     private val debugEnabled: Boolean,
     private val effectiveConfig: com.google.gson.JsonObject
 ) : KillableProcessHandler(commandLine), AnsiEscapeDecoder.ColoredTextAcceptor {
-    private val myAnsiEscapeDecoder = AnsiEscapeDecoder()
+    private val myAnsiEscapeDecoder by lazy { AnsiEscapeDecoder() }
     private val buffers = mutableMapOf<Key<*>, StringBuilder>()
 
     override fun getCharset(): Charset {
@@ -86,6 +100,12 @@ class LogFilteredProcessHandler(
 
         myAnsiEscapeDecoder.escapeText(
             "${header}日志记录模式：${options.logLevel.displayName}$RESET\n",
+            ProcessOutputTypes.STDOUT, this
+        )
+
+        val logProtocol = if (effectiveConfig.get("log_protocol")?.asInt == 1) "Safaia" else "PIPE"
+        myAnsiEscapeDecoder.escapeText(
+            "${header}日志协议：$logProtocol$RESET\n",
             ProcessOutputTypes.STDOUT, this
         )
 
@@ -141,33 +161,34 @@ class LogFilteredProcessHandler(
         val buf = buffers.getOrPut(outputType) { StringBuilder() }
         buf.append(text)
 
-        val newlineIndex = buf.indexOf("\n")
-        if (newlineIndex == -1) {
-            return
-        }
+        while (true) {
+            val newlineIndex = buf.indexOf("\n")
+            if (newlineIndex == -1) {
+                return
+            }
 
-        // 取出一整行，并去除首尾换行
-        var line = buf.substring(0, newlineIndex + 1).trim()
-        // 移除已处理部分（包括换行符）
-        buf.delete(0, newlineIndex + 1)
+            var line = stripAnsiEscapes(buf.substring(0, newlineIndex + 1))
+            buf.delete(0, newlineIndex + 1)
+            if (line.isEmpty()) {
+                continue
+            }
 
-        // System 级别的日志，不能着色，直接输出
-        if (outputType == ProcessOutputTypes.SYSTEM) {
+            if (outputType == ProcessOutputTypes.SYSTEM) {
+                myAnsiEscapeDecoder.escapeText(line + "\n", outputType, this)
+                continue
+            }
+
+            line = if (options.logLevel == LogLevel.VERBOSE) {
+                handleVerboseLog(line) ?: continue
+            } else {
+                handleNormalLog(line) ?: continue
+            }
+
+            if (line.isEmpty()) {
+                continue
+            }
             myAnsiEscapeDecoder.escapeText(line + "\n", outputType, this)
-            return
         }
-
-        // 依据日志等级处理
-        line = if (options.logLevel == LogLevel.VERBOSE) {
-            handleVerboseLog(line) ?: return
-        } else {
-            handleNormalLog(line) ?: return
-        }
-
-        if (line.isEmpty()) {
-            return
-        }
-        myAnsiEscapeDecoder.escapeText(line + "\n", outputType, this)
     }
 
     // 进程结束时把缓冲区中剩余没有换行的部分也处理一次
@@ -175,8 +196,10 @@ class LogFilteredProcessHandler(
         try {
             for ((outputType, sb) in buffers) {
                 if (sb.isNotEmpty()) {
-                    var line = sb.toString().trim()
-                    myAnsiEscapeDecoder.escapeText(line + "\n", outputType, this)
+                    val line = stripAnsiEscapes(sb.toString())
+                    if (line.isNotEmpty()) {
+                        myAnsiEscapeDecoder.escapeText(line + "\n", outputType, this)
+                    }
                 }
             }
         } finally {
@@ -196,7 +219,7 @@ class LogFilteredProcessHandler(
     }
 
     /**
-     * 普通情况下，仅显示 Python 输出的日志内容
+     * 默认模式：保留 MCDK 日志和游戏/Python 日志，过滤引擎噪声。
      */
     fun handleNormalLog(lineInput: String): String? {
         var line = lineInput
@@ -214,7 +237,11 @@ class LogFilteredProcessHandler(
                 val coloredLevel = getColoredLog(trimLine)
                 return "$coloredLevel$trimLine$RESET"
             }
-            return null
+            if (line.contains("[INFO][Engine]") || line == "get_cls" ||
+                line == "get_cls success!!!" || line.startsWith("NO LOG FILE!")) {
+                return null
+            }
+            return "${getColoredLog(line)}$line$RESET"
         }
 
         val rest = matchResult.groupValues[2]

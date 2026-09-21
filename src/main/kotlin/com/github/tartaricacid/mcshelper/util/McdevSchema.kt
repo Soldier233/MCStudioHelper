@@ -60,7 +60,7 @@ object McdevSchema {
         Field("skin_info.slim", "纤细皮肤模型", "bool"),
         Field("skin_info.skin", "皮肤文件（空值自动生成）", "string"),
         Field("include_debug_mod", "附加调试 MOD", "bool"),
-        Field("log_protocol", "日志协议", "int", choices = listOf("0 · PIPE", "1 · Safaia（实验性）")),
+        Field("log_protocol", "日志协议", "int", choices = listOf("0 · PIPE（旧版管道，可能收不到日志）", "1 · Safaia（推荐）")),
         Field("auto_hot_reload_mods", "自动热更新 MOD", "bool"),
         Field("auto_hot_reload_ui", "自动热更新 JSON UI", "bool"),
         Field("auto_hot_reload_shaders", "自动热更新 Shader", "bool"),

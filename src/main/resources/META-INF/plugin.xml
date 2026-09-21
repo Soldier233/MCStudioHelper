@@ -15,8 +15,8 @@
         Configure components and world rules in the project configuration.</li>
         <li>支持 MCS 3.7.0.222545 及以上版本的 DAP 调试，通过 LSP4IJ 插件可实现断点调试功能。<br/>
         Support DAP debugging for MCS 3.7.0.222545 and above, with breakpoint debugging via the LSP4IJ plugin.</li>
-        <li>将开发端日志重定向到 PyCharm 的日志控制台并提供着色支持，并支持错误日志文件快速跳转等功能。<br/>
-        Redirect game client logs to PyCharm's console with color support, and enable quick navigation for error log files.</li>
+        <li>将 MCDK 日志和游戏日志重定向到 PyCharm 控制台并提供着色支持，并支持错误日志文件快速跳转等功能。<br/>
+        Redirect MCDK and game logs to PyCharm's console with color support, and enable quick navigation for error log files.</li>
         <li>热重载由 MCDK 内置调试 Mod 提供（默认随启动附加）。<br/>
         Hot reload is provided by MCDK's bundled debug mod (enabled by default).</li>
       </ul>

@@ -10,7 +10,7 @@
   "world_source_path": "auto",
   "auto_join_game": true,
   "include_debug_mod": true,
-  "log_protocol": 0,
+  "log_protocol": 1,
   "auto_hot_reload_mods": true,
   "auto_hot_reload_ui": false,
   "auto_hot_reload_shaders": false,

@@ -10,6 +10,7 @@ import com.github.tartaricacid.mcshelper.util.PackUtils
 import com.google.common.collect.Maps
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.configurations.PtyCommandLine
 import com.intellij.openapi.project.Project
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -82,7 +83,12 @@ class ConfigRunTask {
             val snapshot = Files.createTempDirectory("mcshelper-launch-")
             try {
                 Files.writeString(snapshot.resolve(McdevJson.FILE_NAME), McdevSchema.gson.toJson(effective))
-                val commandLine = GeneralCommandLine()
+                // A console PTY keeps mcdk line-buffered. A wide width stops ConPTY
+                // wrapping MCP ANSI logs at 80 columns (e.g. "localhost:" / "29133").
+                val commandLine = PtyCommandLine()
+                    .withConsoleMode(true)
+                    .withInitialColumns(1000)
+                    .withInitialRows(40)
                     .withExePath(mcdkPath.absolutePathString())
                     .withWorkDirectory(snapshot.toFile())
                     .withCharset(StandardCharsets.UTF_8)

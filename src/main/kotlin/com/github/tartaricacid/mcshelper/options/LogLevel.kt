@@ -2,12 +2,12 @@ package com.github.tartaricacid.mcshelper.options
 
 enum class LogLevel {
     /**
-     * 普通级别，此时只会打印 Python 层面的日志
+     * 默认级别：MCDK 日志 + 游戏/Python 日志，过滤引擎噪声
      */
     NORMAL,
 
     /**
-     * 全部级别，此时会打印游戏全部系统日志和 Python 层面的日志
+     * 全部级别：再包含游戏系统日志
      */
     VERBOSE;
 
