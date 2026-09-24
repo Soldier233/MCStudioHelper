@@ -102,6 +102,29 @@ class McdevEditorPanelTest {
         }
     }
 
+    @Test fun gameExecutableListSkipsRetailLauncherAndKeepsSavedPath() {
+        SwingUtilities.invokeAndWait {
+            val panel = McdevEditorPanel()
+            val combo = named(panel, "game_executable_path") as JComboBox<*>
+            for (index in 0 until combo.itemCount) {
+                val item = combo.getItemAt(index)?.toString().orEmpty()
+                if (item.isNotBlank()) {
+                    assertTrue(FileUtils.isDevMinecraftExecutable(item), item)
+                    assertFalse(FileUtils.isRetailLauncher(item), item)
+                }
+            }
+            val retail = "D:/MCStudioDownload/game/MinecraftPE_Netease/PCLauncher_x64/Minecraft.Windows.exe"
+            panel.load("""{"game_executable_path":"$retail"}""")
+            assertEquals(retail, (combo.editor.editorComponent as JTextField).text)
+            assertEquals(retail, panel.value().get("game_executable_path").asString)
+            val hint = named(panel, "retailLauncherHint") as JLabel
+            assertTrue(hint.isVisible)
+            assertTrue(hint.text.contains("正式服"))
+            panel.load("""{"game_executable_path":"D:/MCStudioDownload/game/MinecraftPE_Netease/3.9.0.401155/Minecraft.Windows.exe"}""")
+            assertFalse((named(panel, "retailLauncherHint") as JLabel).isVisible)
+        }
+    }
+
     @Test fun renderFormForLayoutReview() {
         SwingUtilities.invokeAndWait {
             val panel = McdevEditorPanel(worldAction = { _, _ -> })

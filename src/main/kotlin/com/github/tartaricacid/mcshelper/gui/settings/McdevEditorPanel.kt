@@ -4,8 +4,10 @@ import com.github.tartaricacid.mcshelper.util.FileUtils
 import com.github.tartaricacid.mcshelper.util.KeyboardTypes
 import com.github.tartaricacid.mcshelper.util.McdevSchema
 import com.google.gson.*
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTextField
 import java.awt.*
+import java.io.File
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -20,6 +22,12 @@ class McdevEditorPanel(
     private var root = JsonObject()
     private var updating = false
     private val error = JLabel(" ")
+    private val retailHint = JLabel().apply {
+        name = "retailLauncherHint"
+        isVisible = false
+        foreground = JBColor(Color(0xA04500), Color(0xFFB86A))
+    }
+    private var gameExecutable: JComboBox<String>? = null
 
     private fun column(): JPanel = object : JPanel() {
         init { layout = BoxLayout(this, BoxLayout.Y_AXIS); alignmentX = 0f }
@@ -130,6 +138,7 @@ class McdevEditorPanel(
                         setInputText(input, chooser.selectedFile.path.replace('\\', '/'))
                 }
             }, BorderLayout.EAST)
+            if (field.path == "game_executable_path") add(retailHint, BorderLayout.SOUTH)
         }
     }
 
@@ -144,12 +153,32 @@ class McdevEditorPanel(
                     list: JList<*>?, value: Any?, index: Int,
                     selected: Boolean, focus: Boolean
                 ): Component {
-                    val shown = value?.toString().orEmpty().ifBlank { "自动检测开发端（留空）" }
-                    return super.getListCellRendererComponent(list, shown, index, selected, focus)
+                    val raw = value?.toString().orEmpty()
+                    val shown = when {
+                        raw.isBlank() -> "自动检测开发端（留空）"
+                        FileUtils.isDevMinecraftExecutable(raw) -> File(raw).parentFile?.name ?: raw
+                        else -> raw
+                    }
+                    val component = super.getListCellRendererComponent(list, shown, index, selected, focus)
+                    if (component is JComponent) component.toolTipText = raw.ifBlank { null }
+                    return component
                 }
             }
-            toolTipText = "可选择已扫描到的 Minecraft.Windows.exe，也可以手动输入或点击浏览"
+            toolTipText = "可选择已扫描到的开发端，也可以手动输入或点击浏览。正式服启动器不会出现在列表中"
+            gameExecutable = this
         }
+    }
+
+    private fun updateRetailHint() {
+        val path = gameExecutable?.let { combo ->
+            (if (combo.isEditable) combo.editor.item else combo.selectedItem)?.toString().orEmpty()
+        }.orEmpty()
+        val retail = FileUtils.isRetailLauncher(path)
+        val text = if (retail) "这是正式服启动器，不能用于开发测试" else ""
+        if (retailHint.text == text && retailHint.isVisible == retail) return
+        retailHint.text = text
+        retailHint.isVisible = retail
+        retailHint.parent?.revalidate()
     }
 
     private fun setInputText(input: JComponent, text: String) {
@@ -202,6 +231,7 @@ class McdevEditorPanel(
                 }
                 row.initial = readValue(row)
             }
+            updateRetailHint()
         } finally { updating = wasUpdating }
     }
 
@@ -233,6 +263,7 @@ class McdevEditorPanel(
     }
 
     private fun formChanged() {
+        updateRetailHint()
         if (updating) return
         attempt {
             val text = McdevSchema.gson.toJson(buildForm())

@@ -48,6 +48,7 @@ class ConfigRunTask {
                     ?: throw ExecutionException("未检测到游戏程序，请在项目配置中选择游戏程序路径")
                 effective.addProperty("game_executable_path", gamePathText.replace('\\', '/'))
             }
+            if (FileUtils.isRetailLauncher(gamePathText)) throw ExecutionException(FileUtils.RETAIL_LAUNCHER_MESSAGE)
             val gamePath = Paths.get(gamePathText)
             if (!Files.isRegularFile(gamePath) || !gamePath.fileName.extension.equals("exe", ignoreCase = true)) {
                 throw ExecutionException("启动程序路径错误：$gamePathText")

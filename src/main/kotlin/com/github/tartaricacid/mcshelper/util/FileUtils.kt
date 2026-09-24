@@ -24,8 +24,14 @@ class FileUtils {
             } ?: files.firstOrNull()
         }
 
+        const val RETAIL_LAUNCHER_MESSAGE =
+            "这是正式服启动器，不能用于开发测试。请选择版本号目录下的 Minecraft.Windows.exe，例如 MinecraftPE_Netease\\3.9.0.401155\\Minecraft.Windows.exe"
+
+        private val versionDirectory = Regex("""(\d+)\.(\d+)\.(\d+)\.(\d+)""")
+
         /**
-         * 寻找开发启动器的可执行文件路径
+         * Mod PC 开发包：版本号目录中的 Minecraft.Windows.exe。PCLauncher 正式服启动器不在其中。
+         * 按版本号从旧到新排列，最后一项是最新开发包。
          */
         fun findMinecraftExecutables(): List<String> {
             val paths = mutableListOf<String>()
@@ -45,7 +51,39 @@ class FileUtils {
                     }
                 }
             }
-            return paths
+            return sortDevExecutables(paths)
+        }
+
+        fun isDevMinecraftExecutable(path: String): Boolean {
+            val file = File(path)
+            return file.name.equals("Minecraft.Windows.exe", ignoreCase = true) &&
+                versionDirectory.matches(file.parentFile?.name.orEmpty())
+        }
+
+        /** 路径分段中带 PCLauncher 的是正式服启动器，MCDK 无法用它加载组件。 */
+        fun isRetailLauncher(path: String): Boolean {
+            return path.split('\\', '/').any { segment -> segment.contains("PCLauncher", ignoreCase = true) }
+        }
+
+        fun sortDevExecutables(paths: Collection<String>): List<String> {
+            return paths.filter { isDevMinecraftExecutable(it) && !isRetailLauncher(it) }
+                .distinct()
+                .sortedWith(compareBy(versionOrder) { versionNumbers(it) })
+        }
+
+        private fun versionNumbers(path: String): List<Int> {
+            val name = File(path).parentFile?.name.orEmpty()
+            val match = versionDirectory.matchEntire(name) ?: return emptyList()
+            return match.groupValues.drop(1).map { it.toInt() }
+        }
+
+        private val versionOrder = Comparator<List<Int>> { left, right ->
+            val size = maxOf(left.size, right.size)
+            for (index in 0 until size) {
+                val difference = left.getOrElse(index) { 0 }.compareTo(right.getOrElse(index) { 0 })
+                if (difference != 0) return@Comparator difference
+            }
+            0
         }
 
         fun isMinecraftRunning(): Boolean {
