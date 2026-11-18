@@ -35,6 +35,24 @@
     </div>
     ]]></description>
     <change-notes><![CDATA[
+    <h3>1.4.0</h3>
+    <ul>
+      <li>Launch through MCDK's automation CLI (<code>mcdk run</code>) instead of the interactive no-argument mode, so the running session can be driven from a shell: <code>mcdk logs</code>, <code>mcdk call reload_scripts</code>, <code>mcdk stop</code></li>
+      <li>Optional CLI session name: filling it isolates game data in a Lane (<code>.mcdev/lanes/{会话名}</code>); leaving it empty keeps saves where they are</li>
+      <li>MCDK's MCP server is switched on automatically and starts on its default port 19133, falling back to a free loopback port when that one is taken, so external MCP clients can connect while multi-instance launches still succeed</li>
+      <li>改为通过 MCDK 自动化 CLI（<code>mcdk run</code>）启动，同一会话可直接用命令行驱动：<code>mcdk logs</code>、<code>mcdk call reload_scripts</code>、<code>mcdk stop</code></li>
+      <li>新增可选 CLI 会话名：填写后启用 Lane 隔离（数据与存档进入 <code>.mcdev/lanes/{会话名}</code>），留空保持原存档位置</li>
+      <li>启动时自动开启 MCDK 的 MCP 服务：默认端口 <code>19133</code>，被占用时改用空闲端口，外部 MCP 客户端可直接连接</li>
+    </ul>
+    <h3>1.3.0</h3>
+    <ul>
+      <li>Bundled MCDK upgraded from v1.6.0 to v1.6.5, shipping the Lane shim and Tracy bridge DLLs alongside <code>mcdk.exe</code></li>
+      <li>New <code>pack_link_mode</code> setting (<code>global</code> / <code>world</code>) with visual editing; world linking keeps addons inside the save so instances no longer share the global pack directory</li>
+      <li>A primary client may now start while the game is running when world linking is selected; the console header reports the effective link mode</li>
+      <li>内置 MCDK 由 v1.6.0 升级到 v1.6.5，随包附带 Lane 注入与 Tracy Profiler 组件</li>
+      <li>新增 <code>pack_link_mode</code>（<code>global</code> / <code>world</code>）可视化设置；存档内链接不再写入全局组件目录，便于多开</li>
+      <li>选择存档内链接时，主客户端可在游戏运行中启动；控制台头部显示实际链接方式</li>
+    </ul>
     <h3>配置编辑</h3>
     <ul>
       <li>直接打开项目 .mcdev.json 使用可视化编辑，原始 JSON 使用 IDE Text 编辑器</li>

@@ -25,7 +25,11 @@ class ConfigRunTask {
         val mcdkPath: String,
         val debugEnabled: Boolean,
         val effectiveConfig: com.google.gson.JsonObject,
-        val snapshotDirectory: java.nio.file.Path
+        val snapshotDirectory: java.nio.file.Path,
+        val cliMode: Boolean,
+        val sessionName: String,
+        val mcpPort: Int,
+        val laneRoot: String
     ) {
         fun cleanup() {
             // Only remove the file created by this launch, never recursively remove MCDK output.
@@ -39,6 +43,12 @@ class ConfigRunTask {
             if (config.launchMode !in listOf("AUTO", "PRIMARY", "SECONDARY")) throw ExecutionException("无效的客户端模式")
             if (config.debugPort !in 1..65535) throw ExecutionException("Debug 端口必须在 1 到 65535 之间")
             val projectPath = project.basePath ?: throw ExecutionException("当前项目路径为空")
+            // Extra clients stay on the legacy subprocess launch: they must not deploy, name a session or bind MCP.
+            val cliMode = config.launchMode != "SECONDARY"
+            val sessionName = config.sessionName.orEmpty().trim()
+            if (cliMode && sessionName.isNotEmpty() && !McdevLaunchConfig.isValidSessionName(sessionName)) {
+                throw ExecutionException("会话名只能包含字母、数字、_ 和 -，且不超过 64 个字符：$sessionName")
+            }
             val effective = try {
                 McdevLaunchConfig.forSnapshot(McdevLaunchConfig.resolve(McdevJson.read(project)), Paths.get(projectPath))
             } catch (e: Exception) { throw ExecutionException("配置无效：${e.message}", e) }
@@ -67,23 +77,36 @@ class ConfigRunTask {
 
             val mcdkPath = McdkLocator.resolve(config.mcdkPath)
             val running = FileUtils.isMinecraftRunning()
-            if (config.launchMode == "PRIMARY" && running) {
-                throw ExecutionException("主客户端会重新部署共享组件，请先关闭已有游戏；需要多开时选择「额外客户端」。")
+            // Global linking redeploys the shared addon directory; world linking only touches this launch's world.
+            if (config.launchMode == "PRIMARY" && running && McdevLaunchConfig.packLinkMode(effective) == "global") {
+                throw ExecutionException(
+                    "主客户端会重新部署共享组件，请先关闭已有游戏；" +
+                        "需要多开时选择「额外客户端」，或把 .mcdev.json 的 pack_link_mode 设为 world（存档内链接）" +
+                        "并确保各实例使用不同的 world_folder_name。"
+                )
             }
 
             val env = mutableMapOf(
                 "MCDEV_IS_PLUGIN_ENV" to "1",
                 "MCDEV_OUTPUT_MODE" to "1"
             )
-            env["MCDEV_IS_SUBPROCESS_MODE"] = if (config.launchMode == "SECONDARY" || (config.launchMode == "AUTO" && running)) "1" else "0"
+            env["MCDEV_IS_SUBPROCESS_MODE"] = if (cliMode) "0" else "1"
             if (debugEnabled) {
                 env["MCDEV_PTVSD_IP"] = "127.0.0.1"
                 env["MCDEV_PTVSD_PORT"] = config.debugPort.toString()
             }
 
+            val mcpPort = if (cliMode) McdevLaunchConfig.mcpPort(effective) else 0
+            // MCP 现在默认开启。额外客户端是第二个游戏实例，再绑一个 MCP 端口只会跟主实例抢 19133，
+            // 也没有会话记录供 CLI 使用，因此在快照里关掉，主实例的 MCP 不受影响。
+            if (!cliMode) {
+                McdevSchema.set(effective, "mcp_server_config.enabled", com.google.gson.JsonPrimitive(false))
+            }
+
             val snapshot = Files.createTempDirectory("mcshelper-launch-")
             try {
-                Files.writeString(snapshot.resolve(McdevJson.FILE_NAME), McdevSchema.gson.toJson(effective))
+                val snapshotFile = snapshot.resolve(McdevJson.FILE_NAME)
+                Files.writeString(snapshotFile, McdevSchema.gson.toJson(effective))
                 // A console PTY keeps mcdk line-buffered. A wide width stops ConPTY
                 // wrapping MCP ANSI logs at 80 columns (e.g. "localhost:" / "29133").
                 val commandLine = PtyCommandLine()
@@ -94,8 +117,19 @@ class ConfigRunTask {
                     .withWorkDirectory(snapshot.toFile())
                     .withCharset(StandardCharsets.UTF_8)
                     .withEnvironment(env)
+                if (cliMode) {
+                    commandLine.addParameters(
+                        McdevLaunchConfig.cliArguments(Paths.get(projectPath), snapshotFile, sessionName, mcpPort)
+                    )
+                }
 
-                return LaunchResult(commandLine, mcdkPath.absolutePathString(), debugEnabled, effective, snapshot)
+                return LaunchResult(
+                    commandLine, mcdkPath.absolutePathString(), debugEnabled, effective, snapshot,
+                    cliMode, sessionName, mcpPort,
+                    if (cliMode && sessionName.isNotBlank()) {
+                        Paths.get(projectPath, ".mcdev", "lanes", sessionName).toString().replace('\\', '/')
+                    } else ""
+                )
             } catch (e: Exception) {
                 runCatching { Files.deleteIfExists(snapshot.resolve(McdevJson.FILE_NAME)); Files.deleteIfExists(snapshot) }
                 throw ExecutionException("准备运行配置失败：${e.message}", e)

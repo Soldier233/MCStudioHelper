@@ -55,7 +55,7 @@ class McdevEditorPanel(
             parent.add(section)
             return section
         }
-        group(form, "启动与组件", listOf("game_executable_path", "included_mod_dirs"))
+        group(form, "启动与组件", listOf("game_executable_path", "included_mod_dirs", "pack_link_mode"))
         val world = group(form, "玩家与世界", listOf("user_name", "world_name", "world_folder_name", "world_source_path",
             "world_seed", "world_type", "game_mode"))
         if (worldAction != null) world.add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 4)).apply {
@@ -245,6 +245,8 @@ class McdevEditorPanel(
                 else -> ""
             }
             when {
+                // enum 选项带中文说明，只把 " · " 前的令牌写回 JSON。
+                row.field.kind == "enum" -> JsonPrimitive(text.substringBefore(' '))
                 row.field.kind == "string" -> JsonPrimitive(text)
                 row.field.kind == "key" -> JsonPrimitive(if (text == "不绑定") "" else text.substringBefore(" · ").trim())
                 row.field.nullable && text.isBlank() -> JsonNull.INSTANCE

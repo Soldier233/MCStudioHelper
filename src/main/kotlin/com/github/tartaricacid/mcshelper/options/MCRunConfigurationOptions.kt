@@ -7,6 +7,7 @@ class MCRunConfigurationOptions : RunConfigurationOptions() {
     private val logLevelProperty = enum(LogLevel.NORMAL).provideDelegate(this, "logLevel")
     private val launchModeProperty = string("AUTO").provideDelegate(this, "launchMode")
     private val debugPortProperty = property(5678).provideDelegate(this, "debugPort")
+    private val sessionNameProperty = string("").provideDelegate(this, "sessionName")
 
     var mcdkPath: String?
         get() = mcdkPathProperty.getValue(this)
@@ -20,4 +21,9 @@ class MCRunConfigurationOptions : RunConfigurationOptions() {
     var debugPort: Int
         get() = debugPortProperty.getValue(this)
         set(value) = debugPortProperty.setValue(this, value)
+
+    /** Empty keeps the legacy single-session layout; a name isolates game data in a Lane. */
+    var sessionName: String
+        get() = sessionNameProperty.getValue(this) ?: ""
+        set(value) = sessionNameProperty.setValue(this, value)
 }

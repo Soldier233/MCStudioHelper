@@ -2,6 +2,7 @@ package com.github.tartaricacid.mcshelper.run
 
 import com.github.tartaricacid.mcshelper.gui.MCSettingsEditor
 import com.github.tartaricacid.mcshelper.log.LogFilteredProcessHandler
+import com.github.tartaricacid.mcshelper.log.McdkSessionInfo
 import com.github.tartaricacid.mcshelper.options.MCRunConfigurationOptions
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
@@ -38,7 +39,8 @@ class MCRunConfiguration(project: Project, factory: ConfigurationFactory?, name:
                         options,
                         launch.mcdkPath,
                         launch.debugEnabled,
-                        launch.effectiveConfig
+                        launch.effectiveConfig,
+                        McdkSessionInfo(launch.cliMode, launch.sessionName, launch.mcpPort, launch.laneRoot)
                     ) } catch (e: Exception) { launch.cleanup(); throw e }
                     processHandler.addProcessListener(object : com.intellij.execution.process.ProcessListener {
                         override fun processTerminated(event: com.intellij.execution.process.ProcessEvent) = launch.cleanup()

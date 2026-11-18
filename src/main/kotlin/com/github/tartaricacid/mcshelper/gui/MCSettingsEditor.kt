@@ -3,6 +3,7 @@ package com.github.tartaricacid.mcshelper.gui
 import com.github.tartaricacid.mcshelper.options.LogLevel
 import com.github.tartaricacid.mcshelper.run.MCRunConfiguration
 import com.github.tartaricacid.mcshelper.util.McdevJson
+import com.github.tartaricacid.mcshelper.util.McdevLaunchConfig
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.ui.Messages
@@ -16,6 +17,7 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
     private val mode = JComboBox(arrayOf("自动", "主客户端", "额外客户端"))
     private val modeValues = listOf("AUTO", "PRIMARY", "SECONDARY")
     private val debugPort = JBTextField("5678").apply { columns = 6 }
+    private val sessionName = FittingField().apply { name = "sessionName" }
     private var current: MCRunConfiguration? = null
 
     private val content = object : JPanel() {
@@ -50,9 +52,11 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
         ))
         content.add(section(JLabel("控制台日志："), compact(logLevel)))
         content.add(section(JLabel("客户端模式："), compact(mode)))
-        content.add(note("自动：已有游戏时启动额外客户端；主客户端部署世界和组件，额外客户端不重新部署。"))
+        content.add(note("自动：已有游戏时启动额外客户端；主客户端以 MCDK CLI 启动并部署世界和组件，额外客户端不重新部署。"))
         content.add(section(JLabel("Debug 附加端口："), compact(debugPort)))
         content.add(note("游戏设置读取项目 .mcdev.json；多个 Debug 客户端请设置不同端口。"))
+        content.add(section(JLabel("CLI 会话名："), compact(sessionName)))
+        content.add(note("留空：不隔离，存档保持原位置，AI 可在项目目录用 mcdk logs / mcdk call / mcdk stop 控制。填写（字母、数字、_、-）：启用 Lane 隔离，数据与存档进入项目 .mcdev/lanes/<会话名>。"))
         content.add(ButtonRow().apply {
             add(JButton("打开 .mcdev.json").apply { addActionListener {
                 current?.let {
@@ -83,15 +87,21 @@ class MCSettingsEditor : SettingsEditor<MCRunConfiguration>() {
         logLevel.selectedItem = config.options.logLevel
         mode.selectedIndex = modeValues.indexOf(config.options.launchMode).coerceAtLeast(0)
         debugPort.text = config.options.debugPort.toString()
+        sessionName.text = config.options.sessionName
     }
 
     override fun applyEditorTo(config: MCRunConfiguration) {
         val port = debugPort.text.toIntOrNull()
         if (port == null || port !in 1..65535) throw ConfigurationException("Debug 端口必须在 1 到 65535 之间")
+        val session = sessionName.text.trim()
+        if (session.isNotEmpty() && !McdevLaunchConfig.isValidSessionName(session)) {
+            throw ConfigurationException("会话名只能包含字母、数字、_ 和 -，且不超过 64 个字符")
+        }
         config.options.mcdkPath = mcdk.text.trim()
         config.options.logLevel = logLevel.selectedItem as LogLevel
         config.options.launchMode = modeValues[mode.selectedIndex]
         config.options.debugPort = port
+        config.options.sessionName = session
     }
 
     private fun section(vararg parts: JComponent) = object : JPanel() {

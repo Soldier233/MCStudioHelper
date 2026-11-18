@@ -15,6 +15,7 @@ class McdevWorkflowTest {
         McdevSchema.validate(defaults)
         assertEquals("82", McdevSchema.get(defaults, "debug_options.reload_key")!!.asString)
         assertEquals(JsonNull.INSTANCE, defaults.get("world_seed"))
+        assertEquals("global", defaults.get("pack_link_mode").asString)
     }
 
     @Test fun projectValuesKeepEmptyFalseNullAndUnknownFields() {
@@ -52,10 +53,11 @@ class McdevWorkflowTest {
         for (text in listOf("[]", "null", "{} {}", "{world_seed: 1}", """{"keep_inventory":"false"}""",
             """{"world_seed":1.5}""", """{"modpc_debugger":{"port":65536}}""", """{"window_style":null}""",
             """{"window_style":{"fixed_size":[0,720]}}""", """{"world_folder_name":"../world"}""",
-            """{"included_mod_dirs":[{"enabled":"false"}]}""")) {
+            """{"included_mod_dirs":[{"enabled":"false"}]}""", """{"pack_link_mode":"save"}""")) {
             assertFails("Should reject $text") { McdevSchema.parse(text) }
         }
         McdevSchema.parse("""{"future_option":{"nested":null},"debug_options":{"reload_key":"-99"},"world_source_path":""}""")
+        assertEquals("world", McdevSchema.parse("""{"pack_link_mode":"world"}""").get("pack_link_mode").asString)
     }
 
     @Test fun snapshotsResolvePathsAndPreserveObjectDirectoryFlags() {
@@ -79,6 +81,56 @@ class McdevWorkflowTest {
             assertFalse(world.has("skin_info"))
         } finally {
             Files.deleteIfExists(projectDir.resolve("level.dat")); Files.deleteIfExists(projectDir)
+        }
+    }
+
+    @Test fun cliArgumentsSwitchToRunAndExposeTheSession() {
+        val projectDir = Files.createTempDirectory("mcdev-cli-")
+        try {
+            val configFile = projectDir.resolve(".mcdev.json")
+            val arguments = McdevLaunchConfig.cliArguments(projectDir, configFile, "", 19133)
+            assertEquals("run", arguments.first())
+            assertEquals(projectDir.toAbsolutePath().normalize().toString(), arguments[arguments.indexOf("--project") + 1])
+            assertEquals(configFile.toAbsolutePath().normalize().toString(), arguments[arguments.indexOf("--config") + 1])
+            assertTrue(arguments.contains("--hot-reload"))
+            assertFalse(arguments.contains("--session"))
+            assertTrue(arguments.contains("mcp_server_config.enabled=true"))
+            assertTrue(arguments.contains("mcp_server_config.server_port=19133"))
+
+            val named = McdevLaunchConfig.cliArguments(projectDir, configFile, "dev-1", 19133)
+            assertEquals("dev-1", named[named.indexOf("--session") + 1])
+            assertTrue(named.contains("mcp_server_config.server_port=19133"))
+        } finally {
+            Files.deleteIfExists(projectDir)
+        }
+    }
+
+    @Test fun sessionNamesMatchMcdkRules() {
+        assertTrue(McdevLaunchConfig.isValidSessionName("dev-1_a"))
+        assertFalse(McdevLaunchConfig.isValidSessionName(""))
+        assertFalse(McdevLaunchConfig.isValidSessionName("dev 1"))
+        assertFalse(McdevLaunchConfig.isValidSessionName("会话"))
+        assertFalse(McdevLaunchConfig.isValidSessionName("a".repeat(65)))
+    }
+
+    @Test fun mcpIsOnByDefaultAndPortFallsBackWhenBusy() {
+        // 默认配置就启用 MCP，端口默认 19133；MCDK 会把它写进会话记录，CLI 自己按记录连接。
+        assertTrue(McdevSchema.get(McdevSchema.defaults(), "mcp_server_config.enabled")!!.asBoolean)
+        assertEquals(19133, McdevSchema.get(McdevSchema.defaults(), "mcp_server_config.server_port")!!.asInt)
+
+        // 配的端口空闲就照用，外部 MCP 客户端（含默认的 19133）能按 .mcdev.json 直接连上。
+        val free = java.net.ServerSocket(0, 0, java.net.InetAddress.getLoopbackAddress()).use { it.localPort }
+        val preferred = McdevSchema.parse("""{"mcp_server_config":{"enabled":true,"server_port":$free}}""")
+        assertEquals(free, McdevLaunchConfig.mcpPort(preferred))
+
+        // 被占用时退回空闲端口，避免 MCDK 因“端口被占用”中止启动（多开、或 19133 已被别的实例占用）。
+        java.net.ServerSocket(0, 0, java.net.InetAddress.getLoopbackAddress()).use { busy ->
+            val config = McdevSchema.parse(
+                """{"mcp_server_config":{"enabled":true,"server_port":${busy.localPort}}}"""
+            )
+            val port = McdevLaunchConfig.mcpPort(config)
+            assertNotEquals(busy.localPort, port)
+            assertTrue(port in 1..65535, "应回退到有效端口，实际 $port")
         }
     }
 

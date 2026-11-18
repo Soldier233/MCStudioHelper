@@ -31,6 +31,13 @@ class McdevEditorPanelTest {
             assertTrue(inventory.isSelected)
             inventory.doClick()
             assertEquals(original.deepCopy().apply { addProperty("keep_inventory", false) }, panel.value())
+
+            // MCDK 1.6.5 的 pack_link_mode：下拉选项带中文说明，写回 JSON 时只保留令牌。
+            val linkMode = named(panel, "pack_link_mode") as JComboBox<*>
+            linkMode.selectedItem = linkMode.getItemAt(1)
+            assertEquals("world", panel.value().get("pack_link_mode").asString)
+            linkMode.selectedItem = linkMode.getItemAt(0)
+            assertEquals(original.deepCopy().apply { addProperty("keep_inventory", false) }, panel.value())
         }
     }
 

@@ -28,16 +28,19 @@ $env:JAVA_HOME = "C:\\Path\\To\\JDK-21-or-newer"
 .\gradlew.bat buildPlugin
 ```
 
-构建成功后，插件 ZIP 位于 `build/distributions/`，例如 `mcs-helper-1.2.0.zip`。在 IDEA/PyCharm 中打开 **Settings | Plugins | 齿轮 | Install Plugin from Disk...**，选择该 ZIP，重启 IDE 即可。
+构建成功后，插件 ZIP 位于 `build/distributions/`，例如 `mcs-helper-1.4.0.zip`。在 IDEA/PyCharm 中打开 **Settings | Plugins | 齿轮 | Install Plugin from Disk...**，选择该 ZIP，重启 IDE 即可。
 
 也可以在 IDEA 的 Gradle 工具窗口执行 `Tasks | intellij platform | buildPlugin`。项目已关闭不兼容的 Gradle Configuration Cache；如果使用外部 Gradle 命令覆盖了项目设置，追加 `--no-configuration-cache` 即可。
 
 ## 主要功能
 
-- ✅ 在 PyCharm 中添加运行配置，通过内置 MCDK 启动开发端
+- ✅ 在 PyCharm 中添加运行配置，通过内置 MCDK（v1.6.5）以自动化 CLI 启动开发端
     - ✅ 统一使用项目 `.mcdev.json`，缺项使用内置默认值
     - ✅ 支持可视化 / JSON 编辑，常用设置直接编辑，高级设置折叠展示
     - ✅ 直接打开 `.mcdev.json` 即可编辑，内置 101 项按键选项
+    - ✅ 支持 `pack_link_mode`：全局包目录（默认）或存档内链接，后者便于多开
+    - ✅ 同一会话可用 `mcdk logs` / `mcdk call` / `mcdk stop` 由命令行或 AI 驱动，无需配置 MCP 客户端
+    - ✅ MCP 服务默认开启（默认端口 `19133`，被占用时自动改用空闲端口并打印），外部 MCP 客户端可直接连接
     - ✅ 结合 LSP4IJ 插件，可在 Debug 启动后附加 ptvsd 做断点调试
 - ✅ 将 MCDK 日志和游戏日志重定向到 PyCharm 控制台并提供着色支持
     - ✅ 支持错误日志文件快速跳转等功能

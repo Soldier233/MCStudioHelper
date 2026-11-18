@@ -2,6 +2,7 @@ package com.github.tartaricacid.mcshelper.log
 
 import com.github.tartaricacid.mcshelper.options.LogLevel
 import com.github.tartaricacid.mcshelper.options.MCRunConfigurationOptions
+import com.github.tartaricacid.mcshelper.util.McdevLaunchConfig
 import com.github.tartaricacid.mcshelper.util.PathUtils
 import com.github.tartaricacid.mcshelper.util.VersionUtils
 import com.intellij.execution.configurations.GeneralCommandLine
@@ -59,6 +60,17 @@ val GAME_LOG = Regex(
 
 const val PYTHON_HEADER = "[Python]"
 
+/** MCDK's own default when no `--session` is passed. */
+const val MCDK_DEFAULT_SESSION = "default"
+
+/** How this launch started, so the console can point at the matching `mcdk` commands. */
+data class McdkSessionInfo(
+    val cliMode: Boolean = false,
+    val sessionName: String = "",
+    val mcpPort: Int = 0,
+    val laneRoot: String = ""
+)
+
 /**
  * Strip CSI/OSC from mcdk, ConPTY, and cpp-mcp (`\033[32m...`).
  * A lost ESC often shows up as `?` or U+FFFD, producing `?[32m`.
@@ -78,7 +90,8 @@ class LogFilteredProcessHandler(
     val options: MCRunConfigurationOptions,
     private val mcdkPath: String,
     private val debugEnabled: Boolean,
-    private val effectiveConfig: com.google.gson.JsonObject
+    private val effectiveConfig: com.google.gson.JsonObject,
+    private val session: McdkSessionInfo = McdkSessionInfo()
 ) : KillableProcessHandler(commandLine), AnsiEscapeDecoder.ColoredTextAcceptor {
     private val myAnsiEscapeDecoder by lazy { AnsiEscapeDecoder() }
     private val buffers = mutableMapOf<Key<*>, StringBuilder>()
@@ -92,6 +105,7 @@ class LogFilteredProcessHandler(
 
         // 启动进程时，按照规范标准开始打印，并添加一些额外系统信息
         val header = this.getRunHeader()
+        fun emit(text: String) = myAnsiEscapeDecoder.escapeText("$header$text$RESET\n", ProcessOutputTypes.STDOUT, this)
 
         myAnsiEscapeDecoder.escapeText(
             "${header}开始运行游戏$RESET\n",
@@ -109,6 +123,26 @@ class LogFilteredProcessHandler(
             ProcessOutputTypes.STDOUT, this
         )
 
+        val linkMode = if (McdevLaunchConfig.packLinkMode(effectiveConfig) == "world") "存档内（可多开）" else "全局包目录"
+        myAnsiEscapeDecoder.escapeText(
+            "${header}Addon 链接方式：$linkMode$RESET\n",
+            ProcessOutputTypes.STDOUT, this
+        )
+
+        if (session.cliMode) {
+            val name = session.sessionName.ifBlank { MCDK_DEFAULT_SESSION }
+            emit("启动方式：MCDK CLI（mcdk run，会话 $name）")
+            if (session.sessionName.isNotBlank()) {
+                emit("会话隔离：数据目录在项目 .mcdev/lanes/$name（存档位于其 MinecraftPE_Netease/minecraftWorlds）")
+            }
+            emit("AI/CLI 控制：在项目目录执行 mcdk logs ／ mcdk call reload_scripts ／ mcdk stop")
+            if (session.mcpPort > 0) {
+                emit("MCP 端口：${session.mcpPort}（随游戏启停；mcdk logs/call 自动读取，外部客户端连 http://localhost:${session.mcpPort}/sse）")
+            }
+        } else {
+            emit("启动方式：交互式（额外客户端，不部署世界与组件）")
+        }
+
         myAnsiEscapeDecoder.escapeText(
             "${header}mcdk 路径：$mcdkPath$RESET\n",
             ProcessOutputTypes.STDOUT, this
@@ -120,7 +154,10 @@ class LogFilteredProcessHandler(
         )
 
         val worldDir = PathUtils.worldsDir()
-        if (worldDir != null) {
+        if (session.laneRoot.isNotBlank()) {
+            val folder = effectiveConfig.get("world_folder_name")?.asString.orEmpty()
+            emit("会话存档路径：${session.laneRoot}/MinecraftPE_Netease/minecraftWorlds/$folder")
+        } else if (worldDir != null) {
             val fullWorldPath = worldDir.resolve(effectiveConfig.get("world_folder_name").asString).toAbsolutePath().toString()
             myAnsiEscapeDecoder.escapeText(
                 "${header}配置的世界存档路径（额外客户端模式不部署）：${fullWorldPath}$RESET\n",
@@ -128,7 +165,7 @@ class LogFilteredProcessHandler(
             )
         }
 
-        val modPaths = com.github.tartaricacid.mcshelper.util.McdevLaunchConfig.enabledModPaths(effectiveConfig)
+        val modPaths = McdevLaunchConfig.enabledModPaths(effectiveConfig)
         val includedModsText = if (modPaths.isEmpty()) {
             "无"
         } else {

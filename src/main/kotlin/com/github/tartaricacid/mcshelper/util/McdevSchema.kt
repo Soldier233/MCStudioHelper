@@ -2,7 +2,7 @@ package com.github.tartaricacid.mcshelper.util
 
 import com.google.gson.*
 
-/** Single source for the form, validation and MCDK 1.6.0 defaults. */
+/** Single source for the form, validation and MCDK 1.6.5 defaults. */
 object McdevSchema {
     val gson: Gson = GsonBuilder().serializeNulls().setPrettyPrinting().disableHtmlEscaping().create()
     fun defaults(): JsonObject = javaClass.getResourceAsStream("/mcdev/defaults.json")!!.bufferedReader().use {
@@ -60,6 +60,8 @@ object McdevSchema {
         Field("skin_info.slim", "纤细皮肤模型", "bool"),
         Field("skin_info.skin", "皮肤文件（空值自动生成）", "string"),
         Field("include_debug_mod", "附加调试 MOD", "bool"),
+        Field("pack_link_mode", "Addon 链接位置", "enum",
+            choices = listOf("global · 全局包目录（默认）", "world · 存档内（可多开）")),
         Field("log_protocol", "日志协议", "int", choices = listOf("0 · PIPE（旧版管道，可能收不到日志）", "1 · Safaia（推荐）")),
         Field("auto_hot_reload_mods", "自动热更新 MOD", "bool"),
         Field("auto_hot_reload_ui", "自动热更新 JSON UI", "bool"),
@@ -90,9 +92,9 @@ object McdevSchema {
         Field("window_style.fixed_position", "固定位置 [X, Y]", "position", true),
         Field("window_style.lock_corner", "锁定角落（1 左上 / 2 右上 / 3 左下 / 4 右下）", "int", true, 1, 4),
         Field("netease_config.chat_extension", "网易聊天扩展", "bool"),
-        Field("mcp_server_config.enabled", "启用 MCP 服务", "bool"),
+        Field("mcp_server_config.enabled", "启用 MCP 服务（默认开启，随游戏启停）", "bool"),
         Field("mcp_server_config.server_ip", "MCP 地址", "string"),
-        Field("mcp_server_config.server_port", "MCP 端口", "int", min = 1, max = 65535)
+        Field("mcp_server_config.server_port", "MCP 端口（默认 19133，被占用时自动改用空闲端口）", "int", min = 1, max = 65535)
     )
 
     fun get(root: JsonObject, path: String): JsonElement? {
@@ -147,6 +149,8 @@ object McdevSchema {
         if (value.isJsonNull) return field.nullable
         return when (field.kind) {
             "string" -> value.isJsonPrimitive && value.asJsonPrimitive.isString
+            "enum" -> value.isJsonPrimitive && value.asJsonPrimitive.isString &&
+                field.choices.any { it.substringBefore(' ') == value.asString }
             "key" -> value.isJsonPrimitive && value.asJsonPrimitive.isString &&
                 (value.asString.isEmpty() || value.asString.toIntOrNull() != null)
             "bool" -> value.isJsonPrimitive && value.asJsonPrimitive.isBoolean
