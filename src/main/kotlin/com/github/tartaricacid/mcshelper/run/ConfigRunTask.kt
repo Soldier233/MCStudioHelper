@@ -76,6 +76,8 @@ class ConfigRunTask {
             }
 
             val mcdkPath = McdkLocator.resolve(config.mcdkPath)
+            // Make the executable discoverable from the project for CLI/agent driven workflows.
+            McdevJson.writeMcdkPath(project, mcdkPath)
             val running = FileUtils.isMinecraftRunning()
             // Global linking redeploys the shared addon directory; world linking only touches this launch's world.
             if (config.launchMode == "PRIMARY" && running && McdevLaunchConfig.packLinkMode(effective) == "global") {

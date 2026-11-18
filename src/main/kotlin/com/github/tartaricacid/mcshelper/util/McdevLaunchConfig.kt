@@ -11,6 +11,8 @@ object McdevLaunchConfig {
 
     /** MCDK reads from cwd. Resolve every documented path against the project before relocating cwd. */
     fun forSnapshot(config: JsonObject, projectDir: Path): JsonObject = config.deepCopy().apply {
+        // Plugin bookkeeping, not an MCDK setting: keep it in the project config, never in the snapshot.
+        remove("mcdk_path")
         fun absolute(path: String): String = projectDir.resolve(path).toAbsolutePath().normalize().toString().replace('\\', '/')
         for (key in listOf("game_executable_path", "skin_info.skin")) {
             McdevSchema.get(this, key)?.takeIf { !it.isJsonNull && it.asString.isNotBlank() }?.let {

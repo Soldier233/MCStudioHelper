@@ -67,5 +67,33 @@ class McdevJson {
 
         private fun defaultsFor(project: Project): JsonObject =
             McdevSchema.defaultsForProject(project.name)
+
+        /**
+         * Record the MCDK executable actually used by a launch in the project config, so an agent
+         * (or a human) can discover it from the project alone. This is the one field the plugin
+         * maintains on the user's behalf: every other value, including unknown extensions, stays
+         * untouched. The cached document is reused so unsaved editor changes are not overwritten.
+         */
+        fun writeMcdkPath(project: Project, mcdkExecutable: java.nio.file.Path) {
+            val path = filePath(project) ?: return
+            val normalized = mcdkExecutable.toAbsolutePath().normalize().toString().replace('\\', '/')
+            val directory = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path.parent) ?: return
+            WriteCommandAction.runWriteCommandAction(project, "记录 MCDK 路径", null, Runnable {
+                val existing = directory.findChild(FILE_NAME)
+                val file = existing ?: directory.createChildData(this, FILE_NAME)
+                val cached = FileDocumentManager.getInstance().getCachedDocument(file)
+                val config = when {
+                    cached != null -> runCatching { McdevSchema.parse(cached.text) }.getOrNull()
+                    existing != null -> runCatching { read(path) }.getOrNull()
+                    else -> null
+                } ?: McdevSchema.defaults()
+                val current = config.get("mcdk_path")
+                if (current != null && current.isJsonPrimitive && current.asJsonPrimitive.isString &&
+                    current.asString == normalized) return@Runnable
+                config.addProperty("mcdk_path", normalized)
+                val text = McdevSchema.gson.toJson(config) + "\n"
+                if (cached != null) cached.setText(text) else file.setBinaryContent(text.toByteArray(Charsets.UTF_8))
+            })
+        }
     }
 }

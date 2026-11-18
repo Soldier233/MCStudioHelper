@@ -83,6 +83,7 @@ mcdk call reload_scripts         # 同步重载改过的 py，返回成功与失
 mcdk stop                        # 结束游戏
 ```
 
+- **MCDK 路径从哪里来**：插件每次启动（生成默认配置时也会）把实际使用的 `mcdk.exe` 绝对路径写入项目根目录 `.mcdev.json` 的顶层 `mcdk_path` 字段（`/` 分隔、可直接执行）。命令行或 AI 只要打开项目的 `.mcdev.json` 就能拿到它，例如 `& ((Get-Content .mcdev.json -Raw | ConvertFrom-Json).mcdk_path) ps`。这个字段是插件维护的元数据，不会传给 MCDK 游戏配置；留空或失效时按常见安装位置回退探测即可。
 - 留空 **CLI 会话名**时使用默认会话 `default`，不隔离，存档仍在原来的位置；`mcdk logs` / `stop` 会自动选中唯一运行中的会话。
 - 填写会话名后启用 Lane 隔离：包目录、存档、日志都在项目 `.mcdev/lanes/<会话名>` 下，多开互不冲突；此时「打开存档目录」仍指向真实数据目录，会话存档需要到该 Lane 目录查看。
 - **MCP 服务默认开启**（`.mcdev.json` 的 `mcp_server_config.enabled` 默认为 `true`），随游戏进程启停，端口默认 `19133`。这就是 MCDK 上游文档里的默认端口，外部 MCP 客户端可以照文档直接连 `http://localhost:19133/sse`。
@@ -91,6 +92,21 @@ mcdk stop                        # 结束游戏
 - 要多开且想让每个实例都有固定端口，就在各自的 `.mcdev.json` 里写死不同的 `mcp_server_config.server_port`。想彻底关掉，把 `mcp_server_config.enabled` 设为 `false`（此时 CLI 的 `logs` / `call` 仍可用，插件启动时会强制打开本次会话的 MCP）。
 - 后台运行、`--detach`、`--reuse`、`--lane` 级别等更细的自动化参数仍可直接用 `mcdk run` 手动调用，插件的启动参数与之等价，可以互相参考。
 - 会话记录位于项目 `.mcdev/` 下，建议把它加入项目的 `.gitignore`，避免误提交。
+
+### 给 AI Agent 用的 Skill（免 MCP 客户端）
+
+仓库 `skills/mcdk-cli/` 是一个 DSH skill：agent 加载后，会先从项目 `.mcdev.json` 的 `mcdk_path` 找到 MCDK，再用 `mcdk run / wait / logs / call / stop` 驱动这次运行——启动、游标增量读日志、热重载脚本、调用游戏内工具（截图、输入、性能分析、JSON UI 调试）、停止游戏，全程不需要在 AI 工具里配置 MCP 客户端。
+
+安装方式（任选其一，详见 `skills/README.md`）：
+
+```powershell
+# 对当前 mod 工程生效，随工程提交
+Copy-Item -Recurse "<本仓库>\skills\mcdk-cli" "<你的工程>\.dsh\skills\mcdk-cli"
+# 或对所有工程生效
+Copy-Item -Recurse "<本仓库>\skills\mcdk-cli" "$env:USERPROFILE\.dsh\skills\mcdk-cli"
+```
+
+> **注意**：skill 免的是「外部 MCP 客户端」，不是 MCDK 自己的 MCP 服务。`mcdk logs` / `call` 正是通过 MCDK 内置 MCP 读取日志和调用工具的，所以不要把 `.mcdev.json` 的 `mcp_server_config.enabled` 关掉。
 
 ## 四、运行
 

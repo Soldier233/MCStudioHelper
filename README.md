@@ -40,7 +40,9 @@ $env:JAVA_HOME = "C:\\Path\\To\\JDK-21-or-newer"
     - ✅ 直接打开 `.mcdev.json` 即可编辑，内置 101 项按键选项
     - ✅ 支持 `pack_link_mode`：全局包目录（默认）或存档内链接，后者便于多开
     - ✅ 同一会话可用 `mcdk logs` / `mcdk call` / `mcdk stop` 由命令行或 AI 驱动，无需配置 MCP 客户端
-    - ✅ MCP 服务默认开启（默认端口 `19133`，被占用时自动改用空闲端口并打印），外部 MCP 客户端可直接连接
+    - ✅ 启动时把实际使用的 MCDK 路径写入项目 `.mcdev.json` 的 `mcdk_path`，AI 只凭项目即可找到 CLI
+    - ✅ 配套仓库 `skills/mcdk-cli` DSH skill：agent 从项目读取路径，直接用 MCDK CLI 启动/读日志/热重载/调用游戏内工具，免外部 MCP 客户端
+    - ✅ MCP 服务默认开启（默认端口 `19133`，被占用时自动改用空闲端口并打印），外部 MCP 客户端可直接连接；CLI 自身也依赖这个内部服务
     - ✅ 结合 LSP4IJ 插件，可在 Debug 启动后附加 ptvsd 做断点调试
 - ✅ 将 MCDK 日志和游戏日志重定向到 PyCharm 控制台并提供着色支持
     - ✅ 支持错误日志文件快速跳转等功能

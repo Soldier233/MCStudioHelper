@@ -63,9 +63,11 @@ class McdevWorkflowTest {
     @Test fun snapshotsResolvePathsAndPreserveObjectDirectoryFlags() {
         val projectDir = Files.createTempDirectory("mcdev-test-")
         try {
-            val project = McdevSchema.parse("""{"game_executable_path":"game/client.exe","skin_info":{"skin":"skins/test.png"},"included_mod_dirs":["./",{"path":"extra","enabled":false,"hot_reload":false,"future":7}],"future":"relative/keep"}""")
+            val project = McdevSchema.parse("""{"game_executable_path":"game/client.exe","skin_info":{"skin":"skins/test.png"},"included_mod_dirs":["./",{"path":"extra","enabled":false,"hot_reload":false,"future":7}],"future":"relative/keep","mcdk_path":"C:/tools/mcdk.exe"}""")
             val original = project.deepCopy()
             val snapshot = McdevLaunchConfig.forSnapshot(McdevLaunchConfig.resolve(project), projectDir)
+            assertFalse(snapshot.has("mcdk_path"), "mcdk_path 是插件元数据，不应传进 MCDK 启动快照")
+            assertEquals("C:/tools/mcdk.exe", project.get("mcdk_path").asString)
             assertEquals(projectDir.resolve("game/client.exe").toString().replace('\\', '/'), snapshot.get("game_executable_path").asString)
             assertEquals(projectDir.resolve("skins/test.png").toString().replace('\\', '/'), McdevSchema.get(snapshot, "skin_info.skin")!!.asString)
             assertEquals("", snapshot.get("world_source_path").asString)
